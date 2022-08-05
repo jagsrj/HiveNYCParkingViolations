@@ -1,0 +1,13 @@
+wget  https://hive-assignment-bucket.s3.amazonaws.com/Parking_Violations_Issued_-_Fiscal_Year_2017.csv;
+
+CREATE TABLE IF NOT EXISTS parkingviolations (SummonsNumber int, PlateID String, RegistrationState String,PlateType String, IssueDate timestamp,ViolationCode int, VehicleBodyType String,VehicleMake String, IssuingAgency String,StreetCode1 int , StreetCode2 int ,StreetCode3 int , VehicleExpirationDate int ,ViolationLocation String, ViolationPrecinct int ,IssuerPrecinct int , IssuerCode int ,IssuerCommand String, IssuerSquad String,ViolationTime String, TimeFirstObserved String,ViolationCounty String, ViolationInFrontOfOrOpposite String,HouseNumber String, StreetName String,IntersectingStreet String, DateFirstObserved int ,LawSection int , SubDivision String,ViolationLegalCode String, DaysParkingInEffect   String ,FromHoursInEffect String, ToHoursInEffect String,VehicleColor String, UnregisteredVehicle String,VehicleYear int , MeterNumber String,FeetFromCurb int , ViolationPostCode String,ViolationDescription String, NoStandingorStoppingViolation String,HydrantViolation String, DoubleParkingViolation String) COMMENT 'parkingviolations assignment' ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
+
+load data local inpath '/home/hadoop/Parking_Violations_Issued_-_Fiscal_Year_2017.csv' into table parkingviolations ;
+
+hive> select count(*) from parkingviolations;
+
+hive> select count(distinct(RegistrationState)) from parkingviolations;
+
+hive> select count(*) from parkingviolations where StreetCode1 is null or StreetCode2 is null or StreetCode1 is null;
+
+
