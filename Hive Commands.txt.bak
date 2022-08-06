@@ -1,13 +1,49 @@
 wget  https://hive-assignment-bucket.s3.amazonaws.com/Parking_Violations_Issued_-_Fiscal_Year_2017.csv;
 
-CREATE TABLE IF NOT EXISTS parkingviolations (SummonsNumber int, PlateID String, RegistrationState String,PlateType String, IssueDate timestamp,ViolationCode int, VehicleBodyType String,VehicleMake String, IssuingAgency String,StreetCode1 int , StreetCode2 int ,StreetCode3 int , VehicleExpirationDate int ,ViolationLocation String, ViolationPrecinct int ,IssuerPrecinct int , IssuerCode int ,IssuerCommand String, IssuerSquad String,ViolationTime String, TimeFirstObserved String,ViolationCounty String, ViolationInFrontOfOrOpposite String,HouseNumber String, StreetName String,IntersectingStreet String, DateFirstObserved int ,LawSection int , SubDivision String,ViolationLegalCode String, DaysParkingInEffect   String ,FromHoursInEffect String, ToHoursInEffect String,VehicleColor String, UnregisteredVehicle String,VehicleYear int , MeterNumber String,FeetFromCurb int , ViolationPostCode String,ViolationDescription String, NoStandingorStoppingViolation String,HydrantViolation String, DoubleParkingViolation String) COMMENT 'parkingviolations assignment' ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n';
+CREATE TABLE IF NOT EXISTS parkingviolations (SummonsNumber int, PlateID String, RegistrationState String,PlateType String, IssueDate timestamp,ViolationCode int, VehicleBodyType String,VehicleMake String, IssuingAgency String,StreetCode1 int , StreetCode2 int ,StreetCode3 int , VehicleExpirationDate int ,ViolationLocation String, ViolationPrecinct int ,IssuerPrecinct int , IssuerCode int ,IssuerCommand String, IssuerSquad String,ViolationTime String, TimeFirstObserved String,ViolationCounty String, ViolationInFrontOfOrOpposite String,HouseNumber String, StreetName String,IntersectingStreet String, DateFirstObserved int ,LawSection int , SubDivision String,ViolationLegalCode String, DaysParkingInEffect   String ,FromHoursInEffect String, ToHoursInEffect String,VehicleColor String, UnregisteredVehicle String,VehicleYear int , MeterNumber String,FeetFromCurb int , ViolationPostCode String,ViolationDescription String, NoStandingorStoppingViolation String,HydrantViolation String, DoubleParkingViolation String) COMMENT 'parkingviolations assignment' ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' tblproperties('skip.header.line.count'='1');
+
+ALTER TABLE parkingviolations SET SERDEPROPERTIES ("timestamp.formats"="MM/DD/YYYY");
+
 
 load data local inpath '/home/hadoop/Parking_Violations_Issued_-_Fiscal_Year_2017.csv' into table parkingviolations ;
 
-hive> select count(*) from parkingviolations;
+select * from parkingviolations limit 5;
 
-hive> select count(distinct(RegistrationState)) from parkingviolations;
+select count(*) from parkingviolations where year(IssueDate)=2017;
+
+select count(distinct(RegistrationState)) from parkingviolations where year(IssueDate)=2017;
+
+select StreetCode1, StreetCode2, StreetCode3 from parkingviolations where StreetCode1 is null or StreetCode2 is null or StreetCode1 is null;
+select count(*) from parkingviolations where StreetCode1 is null or StreetCode2 is null or StreetCode1 is null;
+--------------------------------------------------
+select substring(ViolationTime,1,2), count(*) as violationsCountINAM from parkingviolations where year(IssueDate)=2017 and upper(substring(ViolationTime,-1))='A' group by substring(ViolationTime,1,2) order by violationsCountINAM desc;
+select substring(ViolationTime,1,2), count(*) as violationsCountINPM from parkingviolations where year(IssueDate)=2017 and upper(substring(ViolationTime,-1))='P' group by substring(ViolationTime,1,2) order by violationsCountINPM desc;
 
 
+-----------------------2.2-----------------------------------------------------------------------------------------------------
+# Divide 24 hours into six equal discrete bins of time.
+select ViolationTime_bin , count(*) as countByViolation from (
+SELECT  
 
+case 
+when substring(ViolationTime,1,2) in ('00','01','02','03','12') and upper(substring(ViolationTime,-1))='A' then 'MidNight' 
+when substring(ViolationTime,1,2) in ('04','05','06','07') and upper(substring(ViolationTime,-1))='A' then 'EarlyMorning'  
+when substring(ViolationTime,1,2) in ('08','09','10','11') and upper(substring(ViolationTime,-1))='A' then 'Morning' 
+when substring(ViolationTime,1,2) in ('12','00','01','02','03') and upper(substring(ViolationTime,-1))='P' then 'Noon' 
+when substring(ViolationTime,1,2) in ('04','05','06','07') and upper(substring(ViolationTime,-1))='P' then 'Evening' 
+when substring(ViolationTime,1,2) in ('08','09','10','11') and upper(substring(ViolationTime,-1))='P' then 'Night' 
+else null 
+end as ViolationTime_bin 
+from parkingviolations 
+where year(IssueDate)=2017
+and 
+(
+length(ViolationTime)=5 
+and upper(substring(ViolationTime,-1)) in ('A','P') 
+and substring(ViolationTime,1,2)  in ('00','01','02','03','04','05','06','07', '08','09','10','11','12')
+)
+) ViolationTable
+group by ViolationTime_bin
+order by countByViolation desc;
+-----------------------2.2-----------------------------------------------------------------------------------------------------
 

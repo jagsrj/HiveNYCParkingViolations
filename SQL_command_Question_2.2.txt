@@ -1,0 +1,23 @@
+select ViolationTime_bin , count(*) as countByViolation from (
+SELECT  
+
+case 
+when substring(ViolationTime,1,2) in ('00','01','02','03','12') and upper(substring(ViolationTime,-1))='A' then 'MidNight' 
+when substring(ViolationTime,1,2) in ('04','05','06','07') and upper(substring(ViolationTime,-1))='A' then 'EarlyMorning'  
+when substring(ViolationTime,1,2) in ('08','09','10','11') and upper(substring(ViolationTime,-1))='A' then 'Morning' 
+when substring(ViolationTime,1,2) in ('12','00','01','02','03') and upper(substring(ViolationTime,-1))='P' then 'Noon' 
+when substring(ViolationTime,1,2) in ('04','05','06','07') and upper(substring(ViolationTime,-1))='P' then 'Evening' 
+when substring(ViolationTime,1,2) in ('08','09','10','11') and upper(substring(ViolationTime,-1))='P' then 'Night' 
+else null 
+end as ViolationTime_bin 
+from parkingviolations 
+where year(IssueDate)=2017
+and 
+(
+length(ViolationTime)=5 
+and upper(substring(ViolationTime,-1)) in ('A','P') 
+and substring(ViolationTime,1,2)  in ('00','01','02','03','04','05','06','07', '08','09','10','11','12')
+)
+) ViolationTable
+group by ViolationTime_bin
+order by countByViolation desc;
