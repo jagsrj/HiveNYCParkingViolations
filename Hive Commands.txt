@@ -25,8 +25,9 @@ Answer – 49 tickets have  no addresses (either of StreetCode1, 2 and 3 is null
 
 Q2.1 – Find out the frequency of parking violations across different times of the day
 Commands – 
-select StreetCode1, StreetCode2, StreetCode3 from parkingviolations where StreetCode1 is null or StreetCode2 is null or StreetCode1 is null;
-select count(*) from parkingviolations where StreetCode1 is null or StreetCode2 is null or StreetCode1 is null;
+select substring(ViolationTime, 1,2), count(*) as violationsCountINAM from parkingviolations where IssueDate like '%2017' and upper(substring(ViolationTime, -1)) ='A' group by substring(ViolationTime, 1, 2) order by violationsCountINAM desc;
+select substring(ViolationTime, 1,2), count(*) as violationcountINPM from parkingviolations where IssueDate like '%2017' and upper(substring(ViolationTime, -1)) ='P' group by substring(ViolationTime, 1, 2) order by ViolationCountINPM desc;
+
 Answer – 9 AM and 1 PM are the hours with maximum parking violations. 
 
 Q2.2 – Divide 24 hours into six equal discrete bins of time. The intervals you choose are at your discretion. For each of these groups, find the 3 most commonly occurring violations.
@@ -42,7 +43,7 @@ when substring(violationtime,1,2) in ('08','09','10','11') and upper(substring(v
 when substring(violationtime,1,2) in ('12','01','02','03') and upper(substring(violationtime,-1))='P' then 'AfterNoon_12PM_3PM'
 when substring(violationtime,1,2) in ('04','05','06','07') and upper(substring(violationtime,-1))='P' then 'Evening_4PM_7PM'
 when substring(violationtime,1,2) in ('08','09','10','11') and upper(substring(violationtime,-1))='P' then 'Night_8PM_11PM' 
-else null end as violationbin, ViolationCode from parkingviolations   where IssueDate like '%2017’  
+else null end as violationbin, ViolationCode from parkingviolations   where IssueDate like '%2017'  
 )temp1
 where violationbin is not NULL group by violationbin,ViolationCode
 ) temp2 
@@ -62,7 +63,7 @@ when substring(ViolationTime,1,2) in ('12','00','01','02','03') and upper(substr
 when substring(ViolationTime,1,2) in ('04','05','06','07') and upper(substring(ViolationTime,-1))='P' then 'Evening_4PM_7PM' 
 when substring(ViolationTime,1,2) in ('08','09','10','11') and upper(substring(ViolationTime,-1))='P' then 'Night_8PM_11PM' 
 else null  end as ViolationTime_bin from parkingviolations where IssueDate like '%2017'
-and (length(ViolationTime)=5 and upper(substring(ViolationTime,-1)) in ('A','P') and substring(ViolationTime,1,2)  in ('00','01','02','03','04','05','06','07', '08','09','10','11','12’) )) ViolationTable 
+and (length(ViolationTime)=5 and upper(substring(ViolationTime,-1)) in ('A','P') and substring(ViolationTime,1,2)  in ('00','01','02','03','04','05','06','07', '08','09','10','11','12') )) ViolationTable 
 group by ViolationCode, ViolationTime_bin
 order by countByViolation desc
 limit 3 ;
