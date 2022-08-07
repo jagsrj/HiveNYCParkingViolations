@@ -1,49 +1,107 @@
+Load Data to EMR
 wget  https://hive-assignment-bucket.s3.amazonaws.com/Parking_Violations_Issued_-_Fiscal_Year_2017.csv;
 
-CREATE TABLE IF NOT EXISTS parkingviolations (SummonsNumber int, PlateID String, RegistrationState String,PlateType String, IssueDate timestamp,ViolationCode int, VehicleBodyType String,VehicleMake String, IssuingAgency String,StreetCode1 int , StreetCode2 int ,StreetCode3 int , VehicleExpirationDate int ,ViolationLocation String, ViolationPrecinct int ,IssuerPrecinct int , IssuerCode int ,IssuerCommand String, IssuerSquad String,ViolationTime String, TimeFirstObserved String,ViolationCounty String, ViolationInFrontOfOrOpposite String,HouseNumber String, StreetName String,IntersectingStreet String, DateFirstObserved int ,LawSection int , SubDivision String,ViolationLegalCode String, DaysParkingInEffect   String ,FromHoursInEffect String, ToHoursInEffect String,VehicleColor String, UnregisteredVehicle String,VehicleYear int , MeterNumber String,FeetFromCurb int , ViolationPostCode String,ViolationDescription String, NoStandingorStoppingViolation String,HydrantViolation String, DoubleParkingViolation String) COMMENT 'parkingviolations assignment' ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' tblproperties('skip.header.line.count'='1');
+Load Data to Table
+Command – 
+CREATE TABLE IF NOT EXISTS parkingviolations (SummonsNumber int, PlateID String, RegistrationState String,PlateType String, IssueDate String,ViolationCode int, VehicleBodyType String,VehicleMake String, IssuingAgency String,StreetCode1 int , StreetCode2 int ,StreetCode3 int , VehicleExpirationDate int ,ViolationLocation String, ViolationPrecinct int ,IssuerPrecinct int , IssuerCode int ,IssuerCommand String, IssuerSquad String,ViolationTime String, TimeFirstObserved String,ViolationCounty String, ViolationInFrontOfOrOpposite String,HouseNumber String, StreetName String,IntersectingStreet String, DateFirstObserved int ,LawSection int , SubDivision String,ViolationLegalCode String, DaysParkingInEffect   String ,FromHoursInEffect String, ToHoursInEffect String,VehicleColor String, UnregisteredVehicle String,VehicleYear int , MeterNumber String,FeetFromCurb int , ViolationPostCode String,ViolationDescription String, NoStandingorStoppingViolation String,HydrantViolation String, DoubleParkingViolation String) COMMENT 'parkingviolations assignment' ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\n' tblproperties('skip.header.line.count'='1');
 
-ALTER TABLE parkingviolations SET SERDEPROPERTIES ("timestamp.formats"="MM/DD/YYYY");
 
+Q1.1 - Find the total number of tickets for the year.
+Command – 
+select count(*) from parkingviolations where  year(from_unixtime(unix_timestamp(issuedate,'MM/dd/yyyy'),'yyy-MM-dd'))=2017;
+Answer – There are 5,431,903 parking violations in the year 2017
 
-load data local inpath '/home/hadoop/Parking_Violations_Issued_-_Fiscal_Year_2017.csv' into table parkingviolations ;
+Q1.2 - Find out the total number of states to which the cars with tickets belong.
+Command - select count(distinct(RegistrationState)) from parkingviolations where issuedate like '%2017' and RegistrationState rlike '^([A-Z])';
+Answer – Cars belong to 64 States with ticket
 
-select * from parkingviolations limit 5;
+Q1.2 Optional Question – List of states with tickets
+Command - select distinct(RegistrationState) from parkingviolations where issuedate like '%2017' and RegistrationState rlike '^([A-Z])’;
+Answer – Cars belong to 64 States with ticket
 
-select count(*) from parkingviolations where year(IssueDate)=2017;
+Q1.3 – Find out the number of such tickets which have no addresses.
+Command - select count(*) from parkingviolations where StreetCode1 is null or StreetCode2 is null or StreetCode1 is null; 
+Answer – 49 tickets have  no addresses (either of StreetCode1, 2 and 3 is null)
 
-select count(distinct(RegistrationState)) from parkingviolations where year(IssueDate)=2017;
-
+Q2.1 – Find out the frequency of parking violations across different times of the day
+Commands – 
 select StreetCode1, StreetCode2, StreetCode3 from parkingviolations where StreetCode1 is null or StreetCode2 is null or StreetCode1 is null;
 select count(*) from parkingviolations where StreetCode1 is null or StreetCode2 is null or StreetCode1 is null;
--------------------2.1-------------------------------
-select substring(ViolationTime,1,2), count(*) as violationsCountINAM from parkingviolations where year(IssueDate)=2017 and upper(substring(ViolationTime,-1))='A' group by substring(ViolationTime,1,2) order by violationsCountINAM desc;
-select substring(ViolationTime,1,2), count(*) as violationsCountINPM from parkingviolations where year(IssueDate)=2017 and upper(substring(ViolationTime,-1))='P' group by substring(ViolationTime,1,2) order by violationsCountINPM desc;
+Answer – 9 AM and 1 PM are the hours with maximum parking violations. 
+
+Q2.2 – Divide 24 hours into six equal discrete bins of time. The intervals you choose are at your discretion. For each of these groups, find the 3 most commonly occurring violations.
+Command – 
+select * from (
+select violationbin,violationcode,ViolationCount, dense_rank() over (partition by violationbin order by ViolationCount desc) as rank 
+from 
+( Select violationbin, ViolationCode, count(*) as ViolationCount from 
+( select case 
+when substring(violationtime,1,2) in ('00','12','01','02','03') and upper(substring(violationtime,-1))='A' then 'MidNight_12AM_3AM' 
+when substring(violationtime,1,2) in ('04','05','06','07') and upper(substring(violationtime,-1))='A' then 'EarlyMorning_4AM_7AM' 
+when substring(violationtime,1,2) in ('08','09','10','11') and upper(substring(violationtime,-1))='A' then 'Morning_8AM_11AM' 
+when substring(violationtime,1,2) in ('12','01','02','03') and upper(substring(violationtime,-1))='P' then 'AfterNoon_12PM_3PM'
+when substring(violationtime,1,2) in ('04','05','06','07') and upper(substring(violationtime,-1))='P' then 'Evening_4PM_7PM'
+when substring(violationtime,1,2) in ('08','09','10','11') and upper(substring(violationtime,-1))='P' then 'Night_8PM_11PM' 
+else null end as violationbin, ViolationCode from parkingviolations   where IssueDate like '%2017’  
+)temp1
+where violationbin is not NULL group by violationbin,ViolationCode
+) temp2 
+) temp3 where rank <= 3 ;
 
 
------------------------2.2-----------------------------------------------------------------------------------------------------
-# Divide 24 hours into six equal discrete bins of time.
-select ViolationTime_bin , count(*) as countByViolation from (
-SELECT  
 
+Q2.3 – For the 3 most commonly occurring violation codes, find the most common times of day (in terms of the bins from the previous part).
+Command – 
+select ViolationCode, ViolationTime_bin , count(*) as countByViolation from (
+SELECT  ViolationCode, 
 case 
-when substring(ViolationTime,1,2) in ('00','01','02','03','12') and upper(substring(ViolationTime,-1))='A' then 'MidNight' 
-when substring(ViolationTime,1,2) in ('04','05','06','07') and upper(substring(ViolationTime,-1))='A' then 'EarlyMorning'  
-when substring(ViolationTime,1,2) in ('08','09','10','11') and upper(substring(ViolationTime,-1))='A' then 'Morning' 
-when substring(ViolationTime,1,2) in ('12','00','01','02','03') and upper(substring(ViolationTime,-1))='P' then 'Noon' 
-when substring(ViolationTime,1,2) in ('04','05','06','07') and upper(substring(ViolationTime,-1))='P' then 'Evening' 
-when substring(ViolationTime,1,2) in ('08','09','10','11') and upper(substring(ViolationTime,-1))='P' then 'Night' 
-else null 
-end as ViolationTime_bin 
-from parkingviolations 
-where year(IssueDate)=2017
-and 
-(
-length(ViolationTime)=5 
-and upper(substring(ViolationTime,-1)) in ('A','P') 
-and substring(ViolationTime,1,2)  in ('00','01','02','03','04','05','06','07', '08','09','10','11','12')
-)
-) ViolationTable
-group by ViolationTime_bin
-order by countByViolation desc;
------------------------2.2-----------------------------------------------------------------------------------------------------
+when substring(ViolationTime,1,2) in ('00','01','02','03','12') and upper(substring(ViolationTime,-1))='A' then 'MidNight_12AM_3AM' 
+when substring(ViolationTime,1,2) in ('04','05','06','07') and upper(substring(ViolationTime,-1))='A' then 'EarlyMorning_4AM_7AM'  
+when substring(ViolationTime,1,2) in ('08','09','10','11') and upper(substring(ViolationTime,-1))='A' then 'Morning_8AM_11AM' 
+when substring(ViolationTime,1,2) in ('12','00','01','02','03') and upper(substring(ViolationTime,-1))='P' then 'AfterNoon_12PM_3PM' 
+when substring(ViolationTime,1,2) in ('04','05','06','07') and upper(substring(ViolationTime,-1))='P' then 'Evening_4PM_7PM' 
+when substring(ViolationTime,1,2) in ('08','09','10','11') and upper(substring(ViolationTime,-1))='P' then 'Night_8PM_11PM' 
+else null  end as ViolationTime_bin from parkingviolations where IssueDate like '%2017'
+and (length(ViolationTime)=5 and upper(substring(ViolationTime,-1)) in ('A','P') and substring(ViolationTime,1,2)  in ('00','01','02','03','04','05','06','07', '08','09','10','11','12’) )) ViolationTable 
+group by ViolationCode, ViolationTime_bin
+order by countByViolation desc
+limit 3 ;
 
+
+Q2.4.1 – First, divide the year into seasons, and find the frequencies of tickets for each season. 
+Command – 
+select seasonbin, count(*) as countByViolation from 
+(
+SELECT  ViolationCode, 
+case when month(from_unixtime(unix_timestamp(issuedate,'MM/dd/yyyy'),'yyy-MM-dd'))  in (3,4,5) then 'SPRING' 
+when month(from_unixtime(unix_timestamp(issuedate,'MM/dd/yyyy'),'yyy-MM-dd')) in (6,7,8) then 'SUMMER' 
+when month(from_unixtime(unix_timestamp(issuedate,'MM/dd/yyyy'),'yyy-MM-dd')) in(9,10,11) then 'FALL' 
+when month(from_unixtime(unix_timestamp(issuedate,'MM/dd/yyyy'),'yyy-MM-dd')) in (1,2,12) then 'WINTER' 
+else 'unknown' end as seasonbin 
+from parkingviolations 
+where IssueDate like '%2017'
+) ViolationTable 
+group by seasonbin order by countByViolation desc;
+
+
+Q2.4.2 – Find the 3 most common violations for each of these seasons
+Command – 
+select * from (
+select seasonbin,ViolationCode,ViolationCount, dense_rank() over (partition by seasonbin order by ViolationCount desc) as rank 
+from (
+Select seasonbin, ViolationCode, count(*) as ViolationCount from 
+(
+SELECT   
+case when month(from_unixtime(unix_timestamp(issuedate,'MM/dd/yyyy'),'yyy-MM-dd'))  in (3,4,5) then 'SPRING' 
+when month(from_unixtime(unix_timestamp(issuedate,'MM/dd/yyyy'),'yyy-MM-dd')) in (6,7,8) then 'SUMMER' 
+when month(from_unixtime(unix_timestamp(issuedate,'MM/dd/yyyy'),'yyy-MM-dd')) in(9,10,11) then 'FALL' 
+when month(from_unixtime(unix_timestamp(issuedate,'MM/dd/yyyy'),'yyy-MM-dd')) in (1,2,12) then 'WINTER' 
+else 'unknown' end as seasonbin ,
+ViolationCode
+from parkingviolations 
+where IssueDate like '%2017' 
+) temp1 
+group by seasonbin,ViolationCode
+) temp2
+)temp3
+where rank <= 3 ;
